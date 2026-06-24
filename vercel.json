@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/direct/:path*", "destination": "/api/direct" },
+    { "source": "/:name.m3u8", "destination": "/api/direct" }
+  ]
+}
