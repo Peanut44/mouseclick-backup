@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/playlist.m3u8", "destination": "/api/playlist" },
+    { "source": "/direct/:name.m3u8", "destination": "/api/direct?name=:name" },
+    { "source": "/direct/:name/:seg*", "destination": "/api/direct?name=:name&seg=:seg*" },
+    { "source": "/watch/:name.m3u8", "destination": "/api/direct?name=:name" },
+    { "source": "/watch/:name/:seg*", "destination": "/api/direct?name=:name&seg=:seg*" },
+    { "source": "/:name.m3u8", "destination": "/api/direct?name=:name" },
+    { "source": "/:name/:seg*", "destination": "/api/direct?name=:name&seg=:seg*" }
+  ]
+}
