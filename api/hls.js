@@ -1,21 +1,54 @@
-import { channels, common, cleanName, fetchFirstPlaylist, rewritePlaylist } from "./_shared.js";
+// Mouseclick Vercel fallback - Worker relay playlist
+// api/hls.js
+
+const channels = {
+  "peanut": "https://3rstv.elektriko4444.workers.dev/peanut.m3u8",
+  "mochi": "https://3rssinepinoy2.elektriko4444.workers.dev/mochi.m3u8",
+  "moon": "https://3rsmoviebox.elektriko4444.workers.dev/moon.m3u8",
+  "kolet": "https://3rscartoonmovies.elektriko4444.workers.dev/kolet.m3u8",
+  "southstartv": "https://southstartv.tonia3305.workers.dev/master.live.m3u8",
+  "duriantv": "https://duriantv.tonia3305.workers.dev/master.live.m3u8"
+};
+
+const SECRET = process.env.MC_SECRET_TOKEN || "";
+
+function cors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Range, User-Agent");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+}
+
+function getChannelName(req) {
+  if (req.query.name) return String(req.query.name).replace(/\.m3u8$/i, "");
+
+  // Supports /api/hls/peanut.m3u8 on Vercel rewrite
+  const parts = (req.url || "").split("?")[0].split("/").filter(Boolean);
+  const last = parts[parts.length - 1] || "";
+  return last.replace(/\.m3u8$/i, "");
+}
 
 export default async function handler(req, res) {
-  common(res);
-  if (req.method === "OPTIONS") return res.status(204).end();
-  const name = cleanName(req.query.name);
-  const ch = channels[name];
-  if (!ch) return res.status(404).send(`channel not found: ${name || "empty"}`);
+  cors(res);
 
-  const origin = `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}`;
-  const result = await fetchFirstPlaylist(ch);
-  if (!result.response) {
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    return res.status(502).send("upstream playlist error\n" + JSON.stringify(result.tried, null, 2));
+  if (req.method === "OPTIONS") return res.status(204).end();
+
+  if (SECRET) {
+    const token = req.query.token || req.headers["x-mc-token"];
+    if (token !== SECRET) return res.status(403).send("forbidden");
   }
 
-  const text = await result.response.text();
-  const out = rewritePlaylist(text, result.url, origin, name);
-  res.setHeader("Content-Type", "application/vnd.apple.mpegurl; charset=utf-8");
-  return res.status(200).send(out);
+  const name = getChannelName(req);
+  const target = channels[name];
+
+  if (!target) {
+    return res.status(404).send("channel not found: " + name);
+  }
+
+  // Sa version na ito, Vercel returns a tiny playlist redirecting to Worker URL.
+  // Hindi na Vercel ang magfe-fetch ng BozzTV, para iwas 502.
+  const body = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH=1500000,RESOLUTION=854x480\n${target}\n`;
+
+  res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+  return res.status(200).send(body);
 }
